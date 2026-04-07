@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen-Image-Edit-2511 3D Camera Control</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            border: none;
+        }
+        .camera-stage {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+        .grid-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            transform: rotateX(60deg) translateZ(-100px);
+            transform-origin: center bottom;
+        }
+        .camera-path {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300px;
+            height: 300px;
+            border: 2px solid #10B981;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotateX(60deg);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+        .elevation-path {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300px;
+            height: 300px;
+            border: 2px solid #EC4899;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotateX(60deg) rotateY(90deg);
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
+        }
+        .camera-object {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            background-color: #fff;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%) rotateX(60deg);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .camera {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background-color: #3B82F6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(5px);
+            transition: all 0.2s ease;
+        }
+        .camera:hover {
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(10px) scale(1.1);
+        }
+        .azimuth-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #10B981;
+            border-radius: 50%;
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(5px);
+            transition: all 0.2s ease;
+        }
+        .azimuth-handle:hover {
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(10px) scale(1.1);
+        }
+        .elevation-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #EC4899;
+            border-radius: 50%;
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(5px);
+            transition: all 0.2s ease;
+        }
+        .elevation-handle:hover {
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(10px) scale(1.1);
+        }
+        .distance-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #F97316;
+            border-radius: 50%;
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(5px);
+            transition: all 0.2s ease;
+        }
+        .distance-handle:hover {
+            transform: translate(-50%, -50%) rotateX(60deg) translateZ(10px) scale(1.1);
+        }
+        .camera-line {
+            position: absolute;
+            background-color: #FBBF24;
+            height: 2px;
+            transform-origin: left center;
+            transform: rotateX(60deg);
+            box-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
+        }
+        .stage-prompt {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Qwen-Image-Edit-2511</h1>
+            <p class="text-xl text-gray-600 mb-4">3D Camera Control</p>
+            <p class="text-gray-500">Interactive prompt generator with 3D camera positioning</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Camera Controls -->
+            <div class="space-y-6">
+                <!-- Control Card -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-6">Camera Controls</h2>
+                    
+                    <!-- Azimuth Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Azimuth (Horizontal)</label>
+                            <span id="azimuthValue" class="text-sm font-medium text-gray-700">0°</span>
+                        </div>
+                        <input type="range" id="azimuthSlider" min="0" max="360" value="0" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0°</span>
+                            <span>90°</span>
+                            <span>180°</span>
+                            <span>270°</span>
+                            <span>360°</span>
+                        </div>
+                    </div>
+
+                    <!-- Elevation Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Elevation (Vertical)</label>
+                            <span id="elevationValue" class="text-sm font-medium text-gray-700">0°</span>
+                        </div>
+                        <input type="range" id="elevationSlider" min="-30" max="60" value="0" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>-30°</span>
+                            <span>0°</span>
+                            <span>30°</span>
+                            <span>60°</span>
+                        </div>
+                    </div>
+
+                    <!-- Distance Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Distance</label>
+                            <span id="distanceValue" class="text-sm font-medium text-gray-700">Medium</span>
+                        </div>
+                        <input type="range" id="distanceSlider" min="0" max="2" value="1" step="0.1" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Close</span>
+                            <span>Medium</span>
+                            <span>Wide</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets Card -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Quick Presets</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="front view eye-level shot medium shot">
+                            Front View
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="right side view high-angle shot close-up">
+                            Right Close
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="back view low-angle shot wide shot">
+                            Back Wide
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="front-left quarter view elevated shot medium shot">
+                            Front-Left
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Camera View -->
+            <div>
+                <div class="bg-white rounded-lg shadow-md p-6 h-full">
+                    <h2 class="text-xl font-semibold mb-4">3D Camera Control</h2>
+                    <div class="text-sm text-gray-500 mb-4">
+                        Drag the colored handles: <span class="text-green-500">●</span> Azimuth, <span class="text-pink-500">●</span> Elevation, <span class="text-orange-500">●</span> Distance
+                    </div>
+                    
+                    <div class="camera-stage" id="cameraStage">
+                        <!-- Grid Background -->
+                        <div class="grid-background"></div>
+                        
+                        <!-- Azimuth Path -->
+                        <div class="camera-path"></div>
+                        
+                        <!-- Elevation Path -->
+                        <div class="elevation-path"></div>
+                        
+                        <!-- Object -->
+                        <div class="camera-object">
+                            <div class="text-xl">😊</div>
+                        </div>
+                        
+                        <!-- Camera Line -->
+                        <div class="camera-line" id="cameraLine"></div>
+                        
+                        <!-- Azimuth Handle -->
+                        <div class="azimuth-handle" id="azimuthHandle"></div>
+                        
+                        <!-- Elevation Handle -->
+                        <div class="elevation-handle" id="elevationHandle"></div>
+                        
+                        <!-- Distance Handle -->
+                        <div class="distance-handle" id="distanceHandle"></div>
+                        
+                        <!-- Camera -->
+                        <div class="camera" id="camera">
+                            <i class="fa fa-camera text-white text-xs"></i>
+                        </div>
+                        
+                        <!-- Prompt -->
+                        <div class="stage-prompt" id="stagePrompt">
+                            <sks> front view eye-level shot medium shot
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Output -->
+            <div>
+                <div class="bg-white rounded-lg shadow-md p-6 h-full">
+                    <h2 class="text-xl font-semibold mb-6">Generated Prompt</h2>
+                    
+                    <!-- Prompt Display -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Prompt</label>
+                        <div id="promptOutput" class="bg-gray-50 border border-gray-200 rounded-md p-4 font-mono text-sm">
+                            <sks> front view eye-level shot medium shot
+                        </div>
+                    </div>
+
+                    <!-- Copy Button -->
+                    <div class="mb-6">
+                        <button id="copyButton" class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                            <i class="fa fa-copy"></i>
+                            <span>Copy Prompt</span>
+                        </button>
+                    </div>
+
+                    <!-- Usage Instructions -->
+                    <div class="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4">
+                        <h3 class="font-medium text-blue-700 mb-2">Usage Instructions</h3>
+                        <ul class="text-sm text-gray-700 space-y-1">
+                            <li>• Use the exact prompt format with <code>&lt;sks&gt;</code> trigger</li>
+                            <li>• The order is: [azimuth] [elevation] [distance]</li>
+                            <li>• Recommended LoRA strength: 0.8 - 1.0</li>
+                            <li>• Base model: Qwen/Qwen-Image-Edit-2511</li>
+                        </ul>
+                    </div>
+
+                    <!-- Camera Parameters -->
+                    <div>
+                        <h3 class="block text-sm font-medium text-gray-700 mb-2">Camera Parameters</h3>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Azimuth</div>
+                                <div id="paramAzimuth" class="font-medium">0°</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Elevation</div>
+                                <div id="paramElevation" class="font-medium">0°</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Distance</div>
+                                <div id="paramDistance" class="font-medium">Medium</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">About This Tool</h2>
+            <p class="text-gray-700 mb-4">
+                This interactive prompt generator helps you create precise camera control prompts for the Qwen-Image-Edit-2511-Multiple-Angles-LoRA model.
+                The model supports 96 unique camera positions (4 elevations × 8 azimuths × 3 distances) for precise image editing control.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">96 Camera Poses</h3>
+                    <p class="text-sm text-gray-600">4 elevations × 8 azimuths × 3 distances = 96 unique camera positions</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">Training Data</h3>
+                    <p class="text-sm text-gray-600">3000+ Gaussian Splatting renders for maximum precision</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">Low-Angle Support</h3>
+                    <p class="text-sm text-gray-600">Proper support for ground-level and low camera positions (-30°)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>Built for Qwen-Image-Edit-2511-Multiple-Angles-LoRA | Based on documentation by Lovis Odin</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // DOM Elements
+        const azimuthSlider = document.getElementById('azimuthSlider');
+        const elevationSlider = document.getElementById('elevationSlider');
+        const distanceSlider = document.getElementById('distanceSlider');
+        const azimuthValue = document.getElementById('azimuthValue');
+        const elevationValue = document.getElementById('elevationValue');
+        const distanceValue = document.getElementById('distanceValue');
+        const cameraStage = document.getElementById('cameraStage');
+        const camera = document.getElementById('camera');
+        const cameraLine = document.getElementById('cameraLine');
+        const azimuthHandle = document.getElementById('azimuthHandle');
+        const elevationHandle = document.getElementById('elevationHandle');
+        const distanceHandle = document.getElementById('distanceHandle');
+        const promptOutput = document.getElementById('promptOutput');
+        const stagePrompt = document.getElementById('stagePrompt');
+        const copyButton = document.getElementById('copyButton');
+        const presetButtons = document.querySelectorAll('.preset-btn');
+        const paramAzimuth = document.getElementById('paramAzimuth');
+        const paramElevation = document.getElementById('paramElevation');
+        const paramDistance = document.getElementById('paramDistance');
+
+        // Camera parameters
+        let cameraParams = {
+            azimuth: 0,
+            elevation: 0,
+            distance: 1
+        };
+
+        // Map angle to azimuth option
+        function angleToAzimuth(angle) {
+            const azimuthOptions = [
+                { angle: 0, value: 'front view' },
+                { angle: 45, value: 'front-right quarter view' },
+                { angle: 90, value: 'right side view' },
+                { angle: 135, value: 'back-right quarter view' },
+                { angle: 180, value: 'back view' },
+                { angle: 225, value: 'back-left quarter view' },
+                { angle: 270, value: 'left side view' },
+                { angle: 315, value: 'front-left quarter view' }
+            ];
+            
+            let closestOption = azimuthOptions[0];
+            let minDiff = Math.abs(angle - closestOption.angle);
+            
+            for (const option of azimuthOptions) {
+                const diff = Math.abs(angle - option.angle);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestOption = option;
+                }
+            }
+            
+            return closestOption;
+        }
+
+        // Map elevation to option
+        function elevationToOption(elevation) {
+            if (elevation <= -15) return 'low-angle shot';
+            if (elevation < 15) return 'eye-level shot';
+            if (elevation < 45) return 'elevated shot';
+            return 'high-angle shot';
+        }
+
+        // Map distance to option
+        function distanceToOption(distance) {
+            if (distance < 0.8) return 'close-up';
+            if (distance < 1.4) return 'medium shot';
+            return 'wide shot';
+        }
+
+        // Update prompt
+        function updatePrompt() {
+            const azimuth = angleToAzimuth(cameraParams.azimuth).value;
+            const elevation = elevationToOption(cameraParams.elevation);
+            const distance = distanceToOption(cameraParams.distance);
+            const prompt = `<sks> ${azimuth} ${elevation} ${distance}`;
+            promptOutput.textContent = prompt;
+            stagePrompt.textContent = prompt;
+        }
+
+        // Update camera position
+        function updateCameraPosition() {
+            const stageRect = cameraStage.getBoundingClientRect();
+            const centerX = stageRect.width / 2;
+            const centerY = stageRect.height / 2;
+            const baseRadius = Math.min(centerX, centerY) - 30;
+            const radius = baseRadius * (cameraParams.distance * 0.5 + 0.5);
+            
+            const radians = (cameraParams.azimuth - 90) * Math.PI / 180;
+            const x = centerX + Math.cos(radians) * radius;
+            const y = centerY + Math.sin(radians) * radius;
+            
+            // Update camera
+            camera.style.left = `${x}px`;
+            camera.style.top = `${y}px`;
+            camera.style.transform = 'translate(-50%, -50%)';
+            
+            // Update azimuth handle
+            azimuthHandle.style.left = `${x}px`;
+            azimuthHandle.style.top = `${centerY}px`;
+            azimuthHandle.style.transform = 'translate(-50%, -50%)';
+            
+            // Update elevation handle
+            const elevationRadius = baseRadius * 0.8;
+            const elevationY = centerY + Math.sin(radians) * elevationRadius;
+            elevationHandle.style.left = `${centerX}px`;
+            elevationHandle.style.top = `${elevationY}px`;
+            elevationHandle.style.transform = 'translate(-50%, -50%)';
+            
+            // Update distance handle
+            distanceHandle.style.left = `${x}px`;
+            distanceHandle.style.top = `${y}px`;
+            distanceHandle.style.transform = 'translate(-50%, -50%)';
+            
+            // Update camera line
+            const lineDistance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+            const lineAngle = Math.atan2(y - centerY, x - centerX) * 180 / Math.PI;
+            
+            cameraLine.style.width = `${lineDistance}px`;
+            cameraLine.style.left = `${centerX}px`;
+            cameraLine.style.top = `${centerY}px`;
+            cameraLine.style.transform = `rotate(${lineAngle}deg)`;
+        }
+
+        // Update parameters display
+        function updateParametersDisplay() {
+            azimuthValue.textContent = `${Math.round(cameraParams.azimuth)}°`;
+            elevationValue.textContent = `${Math.round(cameraParams.elevation)}°`;
+            distanceValue.textContent = distanceToOption(cameraParams.distance).split(' ')[0];
+            
+            paramAzimuth.textContent = `${Math.round(cameraParams.azimuth)}°`;
+            paramElevation.textContent = `${Math.round(cameraParams.elevation)}°`;
+            paramDistance.textContent = distanceToOption(cameraParams.distance).split(' ')[0];
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            const prompt = promptOutput.textContent;
+            navigator.clipboard.writeText(prompt).then(() => {
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = '<i class="fa fa-check"></i> <span>Copied!</span>';
+                copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                copyButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                
+                setTimeout(() => {
+                    copyButton.innerHTML = originalText;
+                    copyButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                }, 2000);
+            });
+        }
+
+        // Drag and drop functionality
+        let isDragging = false;
+        let draggingElement = null;
+
+        // Camera drag
+        camera.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            draggingElement = 'camera';
+            e.preventDefault();
+        });
+
+        // Azimuth handle drag
+        azimuthHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            draggingElement = 'azimuth';
+            e.preventDefault();
+        });
+
+        // Elevation handle drag
+        elevationHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            draggingElement = 'elevation';
+            e.preventDefault();
+        });
+
+        // Distance handle drag
+        distanceHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            draggingElement = 'distance';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const stageRect = cameraStage.getBoundingClientRect();
+            const stageLeft = stageRect.left;
+            const stageTop = stageRect.top;
+            const centerX = stageRect.width / 2;
+            const centerY = stageRect.height / 2;
+            
+            const relativeX = e.clientX - stageLeft;
+            const relativeY = e.clientY - stageTop;
+            const dx = relativeX - centerX;
+            const dy = relativeY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            let azimuth = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+            azimuth = (azimuth + 360) % 360;
+            
+            const maxRadius = Math.min(centerX, centerY) - 30;
+            const normalizedDistance = Math.min(distance / maxRadius * 2, 2);
+            
+            switch (draggingElement) {
+                case 'camera':
+                    cameraParams.azimuth = azimuth;
+                    cameraParams.distance = normalizedDistance;
+                    azimuthSlider.value = azimuth;
+                    distanceSlider.value = normalizedDistance;
+                    break;
+                case 'azimuth':
+                    cameraParams.azimuth = azimuth;
+                    azimuthSlider.value = azimuth;
+                    break;
+                case 'elevation':
+                    const elevationRange = maxRadius;
+                    const elevation = ((centerY - relativeY) / elevationRange) * 60;
+                    cameraParams.elevation = Math.max(-30, Math.min(60, elevation));
+                    elevationSlider.value = cameraParams.elevation;
+                    break;
+                case 'distance':
+                    cameraParams.distance = normalizedDistance;
+                    distanceSlider.value = normalizedDistance;
+                    break;
+            }
+            
+            updateParametersDisplay();
+            updateCameraPosition();
+            updatePrompt();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggingElement = null;
+        });
+
+        // Slider event listeners
+        azimuthSlider.addEventListener('input', () => {
+            cameraParams.azimuth = parseFloat(azimuthSlider.value);
+            updateParametersDisplay();
+            updateCameraPosition();
+            updatePrompt();
+        });
+
+        elevationSlider.addEventListener('input', () => {
+            cameraParams.elevation = parseFloat(elevationSlider.value);
+            updateParametersDisplay();
+            updatePrompt();
+        });
+
+        distanceSlider.addEventListener('input', () => {
+            cameraParams.distance = parseFloat(distanceSlider.value);
+            updateParametersDisplay();
+            updateCameraPosition();
+            updatePrompt();
+        });
+
+        // Preset buttons
+        presetButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const preset = button.dataset.preset;
+                const parts = preset.split(' ');
+                
+                let azimuth = '';
+                let elevation = '';
+                let distance = '';
+                
+                for (let i = 0; i < parts.length; i++) {
+                    if (parts[i] === 'view') {
+                        azimuth = parts.slice(0, i + 1).join(' ');
+                    } else if (parts[i] === 'shot') {
+                        elevation = parts.slice(azimuth.split(' ').length, i + 1).join(' ');
+                        distance = parts.slice(azimuth.split(' ').length + elevation.split(' ').length).join(' ');
+                        break;
+                    }
+                }
+                
+                let azimuthAngle = 0;
+                switch (azimuth) {
+                    case 'front view': azimuthAngle = 0; break;
+                    case 'front-right quarter view': azimuthAngle = 45; break;
+                    case 'right side view': azimuthAngle = 90; break;
+                    case 'back-right quarter view': azimuthAngle = 135; break;
+                    case 'back view': azimuthAngle = 180; break;
+                    case 'back-left quarter view': azimuthAngle = 225; break;
+                    case 'left side view': azimuthAngle = 270; break;
+                    case 'front-left quarter view': azimuthAngle = 315; break;
+                }
+                
+                let elevationAngle = 0;
+                switch (elevation) {
+                    case 'low-angle shot': elevationAngle = -30; break;
+                    case 'eye-level shot': elevationAngle = 0; break;
+                    case 'elevated shot': elevationAngle = 30; break;
+                    case 'high-angle shot': elevationAngle = 60; break;
+                }
+                
+                let distanceValue = 1;
+                switch (distance) {
+                    case 'close-up': distanceValue = 0.6; break;
+                    case 'medium shot': distanceValue = 1.0; break;
+                    case 'wide shot': distanceValue = 1.8; break;
+                }
+                
+                cameraParams.azimuth = azimuthAngle;
+                cameraParams.elevation = elevationAngle;
+                cameraParams.distance = distanceValue;
+                
+                azimuthSlider.value = azimuthAngle;
+                elevationSlider.value = elevationAngle;
+                distanceSlider.value = distanceValue;
+                
+                updateParametersDisplay();
+                updateCameraPosition();
+                updatePrompt();
+            });
+        });
+
+        // Copy button
+        copyButton.addEventListener('click', copyToClipboard);
+
+        // Initialize
+        updateParametersDisplay();
+        updateCameraPosition();
+        updatePrompt();
+    </script>
+</body>
+</html>
