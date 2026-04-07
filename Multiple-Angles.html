@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen-Image-Edit-2511 3D Camera Control</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            border: none;
+        }
+        .camera-stage {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            background-color: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #prompt-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #00ff88;
+            white-space: nowrap;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Qwen-Image-Edit-2511</h1>
+            <p class="text-xl text-gray-600 mb-4">3D Camera Control</p>
+            <p class="text-gray-500">Interactive prompt generator with 3D camera positioning</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Camera Controls -->
+            <div class="space-y-6">
+                <!-- Control Card -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-6">Camera Controls</h2>
+                    
+                    <!-- Azimuth Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Azimuth (Horizontal)</label>
+                            <span id="azimuthValue" class="text-sm font-medium text-gray-700">0°</span>
+                        </div>
+                        <input type="range" id="azimuthSlider" min="0" max="315" step="45" value="0" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0°</span>
+                            <span>45°</span>
+                            <span>90°</span>
+                            <span>135°</span>
+                            <span>180°</span>
+                            <span>225°</span>
+                            <span>270°</span>
+                            <span>315°</span>
+                        </div>
+                    </div>
+
+                    <!-- Elevation Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Elevation (Vertical)</label>
+                            <span id="elevationValue" class="text-sm font-medium text-gray-700">0°</span>
+                        </div>
+                        <input type="range" id="elevationSlider" min="-30" max="60" step="30" value="0" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>-30°</span>
+                            <span>0°</span>
+                            <span>30°</span>
+                            <span>60°</span>
+                        </div>
+                    </div>
+
+                    <!-- Distance Control -->
+                    <div class="mb-6">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-medium text-gray-700">Distance</label>
+                            <span id="distanceValue" class="text-sm font-medium text-gray-700">Medium</span>
+                        </div>
+                        <input type="range" id="distanceSlider" min="0.6" max="1.4" step="0.4" value="1.0" class="slider">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Close</span>
+                            <span>Medium</span>
+                            <span>Wide</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets Card -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Quick Presets</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="front view eye-level shot medium shot">
+                            Front View
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="right side view high-angle shot close-up">
+                            Right Close
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="back view low-angle shot wide shot">
+                            Back Wide
+                        </button>
+                        <button class="preset-btn px-4 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors" data-preset="front-left quarter view elevated shot medium shot">
+                            Front-Left
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Camera View -->
+            <div>
+                <div class="bg-white rounded-lg shadow-md p-6 h-full">
+                    <h2 class="text-xl font-semibold mb-4">3D Camera Control</h2>
+                    <div class="text-sm text-gray-500 mb-4">
+                        Drag the colored handles: <span class="text-green-500">🟢</span> Azimuth, <span class="text-pink-500">🩷</span> Elevation, <span class="text-orange-500">🟠</span> Distance
+                    </div>
+                    
+                    <div class="camera-stage" id="cameraStage">
+                        <div id="prompt-overlay"><sks> front view eye-level shot medium shot</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Output -->
+            <div>
+                <div class="bg-white rounded-lg shadow-md p-6 h-full">
+                    <h2 class="text-xl font-semibold mb-6">Generated Prompt</h2>
+                    
+                    <!-- Prompt Display -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Prompt</label>
+                        <div id="promptOutput" class="bg-gray-50 border border-gray-200 rounded-md p-4 font-mono text-sm">
+                            <sks> front view eye-level shot medium shot
+                        </div>
+                    </div>
+
+                    <!-- Copy Button -->
+                    <div class="mb-6">
+                        <button id="copyButton" class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                            <i class="fa fa-copy"></i>
+                            <span>Copy Prompt</span>
+                        </button>
+                    </div>
+
+                    <!-- Usage Instructions -->
+                    <div class="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4">
+                        <h3 class="font-medium text-blue-700 mb-2">Usage Instructions</h3>
+                        <ul class="text-sm text-gray-700 space-y-1">
+                            <li>• Use the exact prompt format with <code>&lt;sks&gt;</code> trigger</li>
+                            <li>• The order is: [azimuth] [elevation] [distance]</li>
+                            <li>• Recommended LoRA strength: 0.8 - 1.0</li>
+                            <li>• Base model: Qwen/Qwen-Image-Edit-2511</li>
+                        </ul>
+                    </div>
+
+                    <!-- Camera Parameters -->
+                    <div>
+                        <h3 class="block text-sm font-medium text-gray-700 mb-2">Camera Parameters</h3>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Azimuth</div>
+                                <div id="paramAzimuth" class="font-medium">0°</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Elevation</div>
+                                <div id="paramElevation" class="font-medium">0°</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-500">Distance</div>
+                                <div id="paramDistance" class="font-medium">Medium</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">About This Tool</h2>
+            <p class="text-gray-700 mb-4">
+                This interactive prompt generator helps you create precise camera control prompts for the Qwen-Image-Edit-2511-Multiple-Angles-LoRA model.
+                The model supports 96 unique camera positions (4 elevations × 8 azimuths × 3 distances) for precise image editing control.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">96 Camera Poses</h3>
+                    <p class="text-sm text-gray-600">4 elevations × 8 azimuths × 3 distances = 96 unique camera positions</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">Training Data</h3>
+                    <p class="text-sm text-gray-600">3000+ Gaussian Splatting renders for maximum precision</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium text-gray-900 mb-2">Low-Angle Support</h3>
+                    <p class="text-sm text-gray-600">Proper support for ground-level and low camera positions (-30°)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>Built for Qwen-Image-Edit-2511-Multiple-Angles-LoRA | Based on documentation by Lovis Odin</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        var azimuthSlider = document.getElementById('azimuthSlider');
+        var elevationSlider = document.getElementById('elevationSlider');
+        var distanceSlider = document.getElementById('distanceSlider');
+        var azimuthValue = document.getElementById('azimuthValue');
+        var elevationValue = document.getElementById('elevationValue');
+        var distanceValue = document.getElementById('distanceValue');
+        var cameraStage = document.getElementById('cameraStage');
+        var promptOverlay = document.getElementById('prompt-overlay');
+        var promptOutput = document.getElementById('promptOutput');
+        var copyButton = document.getElementById('copyButton');
+        var presetButtons = document.querySelectorAll('.preset-btn');
+        var paramAzimuth = document.getElementById('paramAzimuth');
+        var paramElevation = document.getElementById('paramElevation');
+        var paramDistance = document.getElementById('paramDistance');
+
+        // Camera parameters
+        var cameraParams = {
+            azimuth: 0,
+            elevation: 0,
+            distance: 1.0
+        };
+
+        // Map angle to azimuth option
+        var AZIMUTH_MAP = {
+            0: "front view",
+            45: "front-right quarter view",
+            90: "right side view",
+            135: "back-right quarter view",
+            180: "back view",
+            225: "back-left quarter view",
+            270: "left side view",
+            315: "front-left quarter view"
+        };
+
+        var ELEVATION_MAP = {
+            "-30": "low-angle shot",
+            "0": "eye-level shot",
+            "30": "elevated shot",
+            "60": "high-angle shot"
+        };
+
+        var DISTANCE_MAP = {
+            0.6: "close-up",
+            1.0: "medium shot",
+            1.4: "wide shot"
+        };
+
+        // Snap to nearest value
+        function snapToNearest(value, options) {
+            return options.reduce(function(prev, curr) {
+                return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
+            });
+        }
+
+        // Build camera prompt
+        function buildCameraPrompt(azimuth, elevation, distance) {
+            var azimuthSnapped = snapToNearest(azimuth, Object.keys(AZIMUTH_MAP).map(Number));
+            var elevationSnapped = snapToNearest(elevation, Object.keys(ELEVATION_MAP).map(Number));
+            var distanceSnapped = snapToNearest(distance, Object.keys(DISTANCE_MAP).map(Number));
+            var azimuthName = AZIMUTH_MAP[azimuthSnapped];
+            var elevationName = ELEVATION_MAP[elevationSnapped.toString()];
+            var distanceName = DISTANCE_MAP[distanceSnapped];
+            return '<sks> ' + azimuthName + ' ' + elevationName + ' ' + distanceName;
+        }
+
+        // Update prompt
+        function updatePrompt() {
+            var prompt = buildCameraPrompt(cameraParams.azimuth, cameraParams.elevation, cameraParams.distance);
+            promptOutput.textContent = prompt;
+            promptOverlay.textContent = prompt;
+        }
+
+        // Update parameters display
+        function updateParametersDisplay() {
+            azimuthValue.textContent = Math.round(cameraParams.azimuth) + '°';
+            elevationValue.textContent = Math.round(cameraParams.elevation) + '°';
+            distanceValue.textContent = DISTANCE_MAP[cameraParams.distance].split(' ')[0];
+            
+            paramAzimuth.textContent = Math.round(cameraParams.azimuth) + '°';
+            paramElevation.textContent = Math.round(cameraParams.elevation) + '°';
+            paramDistance.textContent = DISTANCE_MAP[cameraParams.distance].split(' ')[0];
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            var prompt = promptOutput.textContent;
+            navigator.clipboard.writeText(prompt).then(function() {
+                var originalText = copyButton.innerHTML;
+                copyButton.innerHTML = '<i class="fa fa-check"></i> <span>Copied!</span>';
+                copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                copyButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                
+                setTimeout(function() {
+                    copyButton.innerHTML = originalText;
+                    copyButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                }, 2000);
+            });
+        }
+
+        // Three.js scene variables
+        var scene, camera, renderer;
+        var cameraGroup, targetPlane;
+        var azimuthHandle, elevationHandle, distanceHandle;
+        var azimuthRing, elevationArc, distanceLine;
+        var CENTER, BASE_DISTANCE, AZIMUTH_RADIUS, ELEVATION_RADIUS;
+        var azimuthAngle, elevationAngle, distanceFactor;
+        var azimuthSteps = [0, 45, 90, 135, 180, 225, 270, 315];
+        var elevationSteps = [-30, 0, 30, 60];
+        var distanceSteps = [0.6, 1.0, 1.4];
+        var isDragging = false;
+        var dragTarget = null;
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        var intersection = new THREE.Vector3();
+
+        // Initialize Three.js scene
+        function initScene() {
+            if (typeof THREE === 'undefined') {
+                setTimeout(initScene, 100);
+                return;
+            }
+            
+            var wrapper = document.getElementById('cameraStage');
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            
+            camera = new THREE.PerspectiveCamera(50, wrapper.clientWidth / wrapper.clientHeight, 0.1, 1000);
+            camera.position.set(4.5, 3, 4.5);
+            camera.lookAt(0, 0.75, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            wrapper.insertBefore(renderer.domElement, promptOverlay);
+            
+            // Lighting and grid
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            var dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+            scene.add(new THREE.GridHelper(8, 16, 0x333333, 0x222222));
+            
+            // Constants
+            CENTER = new THREE.Vector3(0, 0.75, 0);
+            BASE_DISTANCE = 1.6;
+            AZIMUTH_RADIUS = 2.4;
+            ELEVATION_RADIUS = 1.8;
+            
+            // State
+            azimuthAngle = cameraParams.azimuth;
+            elevationAngle = cameraParams.elevation;
+            distanceFactor = cameraParams.distance;
+            
+            // Create placeholder texture (smiley face)
+            function createPlaceholderTexture() {
+                var canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                var ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#3a3a4a';
+                ctx.fillRect(0, 0, 256, 256);
+                ctx.fillStyle = '#ffcc99';
+                ctx.beginPath();
+                ctx.arc(128, 128, 80, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(100, 110, 10, 0, Math.PI * 2);
+                ctx.arc(156, 110, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(128, 130, 35, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+                return new THREE.CanvasTexture(canvas);
+            }
+            
+            // Target image plane
+            var planeMaterial = new THREE.MeshBasicMaterial({ map: createPlaceholderTexture(), side: THREE.DoubleSide });
+            targetPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), planeMaterial);
+            targetPlane.position.copy(CENTER);
+            scene.add(targetPlane);
+            
+            // Camera model
+            cameraGroup = new THREE.Group();
+            var bodyMat = new THREE.MeshStandardMaterial({ color: 0x6699cc, metalness: 0.5, roughness: 0.3 });
+            var body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.38), bodyMat);
+            cameraGroup.add(body);
+            var lens = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.18, 16),
+                new THREE.MeshStandardMaterial({ color: 0x6699cc, metalness: 0.5, roughness: 0.3 }));
+            lens.rotation.x = Math.PI / 2;
+            lens.position.z = 0.26;
+            cameraGroup.add(lens);
+            scene.add(cameraGroup);
+            
+            // Green: Azimuth ring
+            azimuthRing = new THREE.Mesh(new THREE.TorusGeometry(AZIMUTH_RADIUS, 0.04, 16, 64),
+                new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.3 }));
+            azimuthRing.rotation.x = Math.PI / 2;
+            azimuthRing.position.y = 0.05;
+            scene.add(azimuthRing);
+            
+            azimuthHandle = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.5 }));
+            azimuthHandle.userData.type = 'azimuth';
+            scene.add(azimuthHandle);
+            
+            // Pink: Elevation arc
+            var arcPoints = [];
+            for (var i = 0; i <= 32; i++) {
+                var angle = THREE.MathUtils.degToRad(-30 + (90 * i / 32));
+                arcPoints.push(new THREE.Vector3(-0.8, ELEVATION_RADIUS * Math.sin(angle) + CENTER.y, ELEVATION_RADIUS * Math.cos(angle)));
+            }
+            var arcCurve = new THREE.CatmullRomCurve3(arcPoints);
+            elevationArc = new THREE.Mesh(new THREE.TubeGeometry(arcCurve, 32, 0.04, 8, false),
+                new THREE.MeshStandardMaterial({ color: 0xff69b4, emissive: 0xff69b4, emissiveIntensity: 0.3 }));
+            scene.add(elevationArc);
+            
+            elevationHandle = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xff69b4, emissive: 0xff69b4, emissiveIntensity: 0.5 }));
+            elevationHandle.userData.type = 'elevation';
+            scene.add(elevationHandle);
+            
+            // Orange: Distance line and handle
+            var distanceLineGeo = new THREE.BufferGeometry();
+            distanceLine = new THREE.Line(distanceLineGeo, new THREE.LineBasicMaterial({ color: 0xffa500 }));
+            scene.add(distanceLine);
+            
+            distanceHandle = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffa500, emissive: 0xffa500, emissiveIntensity: 0.5 }));
+            distanceHandle.userData.type = 'distance';
+            scene.add(distanceHandle);
+            
+            // Update all positions
+            function updatePositions() {
+                var distance = BASE_DISTANCE * distanceFactor;
+                var azRad = THREE.MathUtils.degToRad(azimuthAngle);
+                var elRad = THREE.MathUtils.degToRad(elevationAngle);
+                
+                var camX = distance * Math.sin(azRad) * Math.cos(elRad);
+                var camY = distance * Math.sin(elRad) + CENTER.y;
+                var camZ = distance * Math.cos(azRad) * Math.cos(elRad);
+                
+                cameraGroup.position.set(camX, camY, camZ);
+                cameraGroup.lookAt(CENTER);
+                
+                azimuthHandle.position.set(AZIMUTH_RADIUS * Math.sin(azRad), 0.05, AZIMUTH_RADIUS * Math.cos(azRad));
+                elevationHandle.position.set(-0.8, ELEVATION_RADIUS * Math.sin(elRad) + CENTER.y, ELEVATION_RADIUS * Math.cos(elRad));
+                
+                var orangeDist = distance - 0.5;
+                distanceHandle.position.set(
+                    orangeDist * Math.sin(azRad) * Math.cos(elRad),
+                    orangeDist * Math.sin(elRad) + CENTER.y,
+                    orangeDist * Math.cos(azRad) * Math.cos(elRad)
+                );
+                distanceLine.geometry.setFromPoints([cameraGroup.position.clone(), CENTER.clone()]);
+                
+                // Update prompt
+                var azSnap = snapToNearest(azimuthAngle, azimuthSteps);
+                var elSnap = snapToNearest(elevationAngle, elevationSteps);
+                var distSnap = snapToNearest(distanceFactor, distanceSteps);
+                var prompt = buildCameraPrompt(azSnap, elSnap, distSnap);
+                promptOverlay.textContent = prompt;
+                promptOutput.textContent = prompt;
+            }
+            
+            function updatePropsAndTrigger() {
+                var azSnap = snapToNearest(azimuthAngle, azimuthSteps);
+                var elSnap = snapToNearest(elevationAngle, elevationSteps);
+                var distSnap = snapToNearest(distanceFactor, distanceSteps);
+                
+                cameraParams.azimuth = azSnap;
+                cameraParams.elevation = elSnap;
+                cameraParams.distance = distSnap;
+                
+                azimuthSlider.value = azSnap;
+                elevationSlider.value = elSnap;
+                distanceSlider.value = distSnap;
+                
+                updateParametersDisplay();
+            }
+            
+            // Mouse events
+            var canvas = renderer.domElement;
+            
+            canvas.addEventListener('mousedown', function(e) {
+                var rect = canvas.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                var intersects = raycaster.intersectObjects([azimuthHandle, elevationHandle, distanceHandle]);
+                if (intersects.length > 0) {
+                    isDragging = true;
+                    dragTarget = intersects[0].object;
+                    dragTarget.material.emissiveIntensity = 1.0;
+                    dragTarget.scale.setScalar(1.3);
+                    canvas.style.cursor = 'grabbing';
+                }
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                var rect = canvas.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                if (isDragging && dragTarget) {
+                    raycaster.setFromCamera(mouse, camera);
+                    if (dragTarget.userData.type === 'azimuth') {
+                        var plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.05);
+                        if (raycaster.ray.intersectPlane(plane, intersection)) {
+                            azimuthAngle = THREE.MathUtils.radToDeg(Math.atan2(intersection.x, intersection.z));
+                            if (azimuthAngle < 0) azimuthAngle += 360;
+                        }
+                    } else if (dragTarget.userData.type === 'elevation') {
+                        var plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -0.8);
+                        if (raycaster.ray.intersectPlane(plane, intersection)) {
+                            var relY = intersection.y - CENTER.y;
+                            var relZ = intersection.z;
+                            elevationAngle = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(Math.atan2(relY, relZ)), -30, 60);
+                        }
+                    } else if (dragTarget.userData.type === 'distance') {
+                        var deltaY = mouse.y - (window.dragStartMouse ? window.dragStartMouse.y : 0);
+                        distanceFactor = THREE.MathUtils.clamp((window.dragStartDistance ? window.dragStartDistance : distanceFactor) - deltaY * 1.5, 0.6, 1.4);
+                    }
+                    updatePositions();
+                } else {
+                    raycaster.setFromCamera(mouse, camera);
+                    var intersects = raycaster.intersectObjects([azimuthHandle, elevationHandle, distanceHandle]);
+                    [azimuthHandle, elevationHandle, distanceHandle].forEach(function(h) {
+                        h.material.emissiveIntensity = 0.5;
+                        h.scale.setScalar(1);
+                    });
+                    if (intersects.length > 0) {
+                        intersects[0].object.material.emissiveIntensity = 0.8;
+                        intersects[0].object.scale.setScalar(1.1);
+                        canvas.style.cursor = 'grab';
+                    } else canvas.style.cursor = 'default';
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                if (dragTarget) {
+                    dragTarget.material.emissiveIntensity = 0.5;
+                    dragTarget.scale.setScalar(1);
+                    var targetAz = snapToNearest(azimuthAngle, azimuthSteps);
+                    var targetEl = snapToNearest(elevationAngle, elevationSteps);
+                    var targetDist = snapToNearest(distanceFactor, distanceSteps);
+                    var startAz = azimuthAngle, startEl = elevationAngle, startDist = distanceFactor;
+                    var startTime = Date.now();
+                    function animateSnap() {
+                        var t = Math.min((Date.now() - startTime) / 200, 1);
+                        var ease = 1 - Math.pow(1 - t, 3);
+                        var azDiff = targetAz - startAz;
+                        if (azDiff > 180) azDiff -= 360;
+                        if (azDiff < -180) azDiff += 360;
+                        azimuthAngle = startAz + azDiff * ease;
+                        if (azimuthAngle < 0) azimuthAngle += 360;
+                        if (azimuthAngle >= 360) azimuthAngle -= 360;
+                        elevationAngle = startEl + (targetEl - startEl) * ease;
+                        distanceFactor = startDist + (targetDist - startDist) * ease;
+                        updatePositions();
+                        if (t < 1) requestAnimationFrame(animateSnap);
+                        else updatePropsAndTrigger();
+                    }
+                    animateSnap();
+                }
+                isDragging = false;
+                dragTarget = null;
+                canvas.style.cursor = 'default';
+            });
+            
+            // Initial update
+            updatePositions();
+            
+            // Render loop
+            function render() {
+                requestAnimationFrame(render);
+                renderer.render(scene, camera);
+            }
+            render();
+            
+            // Window resize
+            new ResizeObserver(function() {
+                camera.aspect = wrapper.clientWidth / wrapper.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
+            }).observe(wrapper);
+            
+            // Expose update method
+            window.updateCameraFromSliders = function(azimuth, elevation, distance) {
+                azimuthAngle = azimuth;
+                elevationAngle = elevation;
+                distanceFactor = distance;
+                updatePositions();
+            };
+        }
+
+        // Initialize Three.js scene
+        initScene();
+
+        // Slider event listeners
+        azimuthSlider.addEventListener('input', function() {
+            cameraParams.azimuth = parseFloat(azimuthSlider.value);
+            updateParametersDisplay();
+            updatePrompt();
+            if (window.updateCameraFromSliders) {
+                window.updateCameraFromSliders(cameraParams.azimuth, cameraParams.elevation, cameraParams.distance);
+            }
+        });
+
+        elevationSlider.addEventListener('input', function() {
+            cameraParams.elevation = parseFloat(elevationSlider.value);
+            updateParametersDisplay();
+            updatePrompt();
+            if (window.updateCameraFromSliders) {
+                window.updateCameraFromSliders(cameraParams.azimuth, cameraParams.elevation, cameraParams.distance);
+            }
+        });
+
+        distanceSlider.addEventListener('input', function() {
+            cameraParams.distance = parseFloat(distanceSlider.value);
+            updateParametersDisplay();
+            updatePrompt();
+            if (window.updateCameraFromSliders) {
+                window.updateCameraFromSliders(cameraParams.azimuth, cameraParams.elevation, cameraParams.distance);
+            }
+        });
+
+        // Preset buttons
+        presetButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var preset = button.dataset.preset;
+                var parts = preset.split(' ');
+                
+                var azimuth = '';
+                var elevation = '';
+                var distance = '';
+                
+                for (var i = 0; i < parts.length; i++) {
+                    if (parts[i] === 'view') {
+                        azimuth = parts.slice(0, i + 1).join(' ');
+                    } else if (parts[i] === 'shot') {
+                        elevation = parts.slice(azimuth.split(' ').length, i + 1).join(' ');
+                        distance = parts.slice(azimuth.split(' ').length + elevation.split(' ').length).join(' ');
+                        break;
+                    }
+                }
+                
+                var azimuthAngle = 0;
+                switch (azimuth) {
+                    case 'front view': azimuthAngle = 0; break;
+                    case 'front-right quarter view': azimuthAngle = 45; break;
+                    case 'right side view': azimuthAngle = 90; break;
+                    case 'back-right quarter view': azimuthAngle = 135; break;
+                    case 'back view': azimuthAngle = 180; break;
+                    case 'back-left quarter view': azimuthAngle = 225; break;
+                    case 'left side view': azimuthAngle = 270; break;
+                    case 'front-left quarter view': azimuthAngle = 315; break;
+                }
+                
+                var elevationAngle = 0;
+                switch (elevation) {
+                    case 'low-angle shot': elevationAngle = -30; break;
+                    case 'eye-level shot': elevationAngle = 0; break;
+                    case 'elevated shot': elevationAngle = 30; break;
+                    case 'high-angle shot': elevationAngle = 60; break;
+                }
+                
+                var distanceValue = 1.0;
+                switch (distance) {
+                    case 'close-up': distanceValue = 0.6; break;
+                    case 'medium shot': distanceValue = 1.0; break;
+                    case 'wide shot': distanceValue = 1.4; break;
+                }
+                
+                cameraParams.azimuth = azimuthAngle;
+                cameraParams.elevation = elevationAngle;
+                cameraParams.distance = distanceValue;
+                
+                azimuthSlider.value = azimuthAngle;
+                elevationSlider.value = elevationAngle;
+                distanceSlider.value = distanceValue;
+                
+                updateParametersDisplay();
+                updatePrompt();
+                if (window.updateCameraFromSliders) {
+                    window.updateCameraFromSliders(cameraParams.azimuth, cameraParams.elevation, cameraParams.distance);
+                }
+            });
+        });
+
+        // Copy button
+        copyButton.addEventListener('click', copyToClipboard);
+
+        // Initialize
+        updateParametersDisplay();
+        updatePrompt();
+    </script>
+</body>
+</html>
